@@ -3,9 +3,12 @@ package com.kentji.lanclient.data
 import android.content.Context
 import android.content.SharedPreferences
 import java.io.File
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 const val DEFAULT_BASE_URL = "http://10.1.1.7:5888/"
 
@@ -54,19 +57,12 @@ class Store(context: Context) {
     fun saveNotifiedKeys(map: Map<String, Set<String>>) {
         synchronized(lock) {
             try {
-                val obj = buildMap<String, List<String>> {
-                    for ((k, v) in map) put(k, v.sorted())
+                val obj = buildJsonObject {
+                    for ((k, v) in map) {
+                        put(k, buildJsonArray { for (s in v.sorted()) add(s) })
+                    }
                 }
-                val text = LENIENT_JSON.encodeToString(
-                    kotlinx.serialization.builtins.MapSerializer(
-                        kotlinx.serialization.builtins.serializer<String>(),
-                        kotlinx.serialization.builtins.ListSerializer(
-                            kotlinx.serialization.builtins.serializer<String>()
-                        )
-                    ),
-                    obj
-                )
-                notifiedFile.writeText(text)
+                notifiedFile.writeText(obj.toString())
             } catch (_: Exception) {
                 // Dedup persistence is best-effort; in-memory state still guards this run.
             }

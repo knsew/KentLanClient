@@ -10,6 +10,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -79,17 +85,17 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     bottomBar = {
                         NavigationBar {
-                            for ((route, label) in listOf(
-                                "signals" to "Signals",
-                                "market" to "Market",
-                                "paper" to "Paper",
-                                "watch" to "Watch",
-                                "settings" to "Settings"
+                            for ((route, label, icon) in listOf(
+                                Triple("signals", "Signals", Icons.Filled.Notifications),
+                                Triple("market", "Market", Icons.Filled.Search),
+                                Triple("paper", "Paper", Icons.Filled.Favorite),
+                                Triple("watch", "Watch", Icons.Filled.Home),
+                                Triple("settings", "Settings", Icons.Filled.Settings)
                             )) {
                                 NavigationBarItem(
                                     selected = current == route,
                                     onClick = { nav.navigate(route) },
-                                    icon = { Icon(androidx.compose.material.icons.Icons.Filled.Star, contentDescription = label) },
+                                    icon = { Icon(icon, contentDescription = label) },
                                     label = { Text(label) }
                                 )
                             }
