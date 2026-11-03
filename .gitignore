@@ -1,0 +1,17 @@
+*.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+/data/
+*.zip
+.env
+.env.*
+local.properties
+build/
+.gradle/
+*.apk
+*.aab
+.idea/
+*.iml
+.DS_Store
