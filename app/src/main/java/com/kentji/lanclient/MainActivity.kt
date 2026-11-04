@@ -86,11 +86,11 @@ class MainActivity : ComponentActivity() {
                     bottomBar = {
                         NavigationBar {
                             for ((route, label, icon) in listOf(
-                                Triple("signals", "Signals", Icons.Filled.Notifications),
-                                Triple("market", "Market", Icons.Filled.Search),
-                                Triple("paper", "Paper", Icons.Filled.Favorite),
-                                Triple("watch", "Watch", Icons.Filled.Home),
-                                Triple("settings", "Settings", Icons.Filled.Settings)
+                                Triple("signals", "信号", Icons.Filled.Notifications),
+                                Triple("market", "看盘", Icons.Filled.Search),
+                                Triple("paper", "虚拟交易", Icons.Filled.Favorite),
+                                Triple("watch", "观察池", Icons.Filled.Home),
+                                Triple("settings", "设置", Icons.Filled.Settings)
                             )) {
                                 NavigationBarItem(
                                     selected = current == route,

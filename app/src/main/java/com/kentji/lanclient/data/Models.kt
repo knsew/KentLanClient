@@ -24,6 +24,17 @@ fun JsonObject.intVal(key: String): Int? = get(key)?.jsonPrimitive?.intOrNull
 fun JsonObject.boolVal(key: String): Boolean? =
     get(key)?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
 
+/** Display name for a server period code (server stores codes like "30m"). */
+fun periodLabel(period: String): String = when (period) {
+    "1m" -> "1分钟"
+    "5m" -> "5分钟"
+    "15m" -> "15分钟"
+    "30m" -> "30分钟"
+    "60m" -> "60分钟"
+    "1d" -> "日线"
+    else -> period
+}
+
 /** One leg / fired event. Field names follow the server API; parsing is tolerant. */
 @Serializable
 data class Leg(
@@ -49,6 +60,7 @@ data class Leg(
     /** Stable identity for notification dedup. */
     fun eventKey(): String = "${leg_id ?: ""}|${bar_ts ?: ""}|$sym|$period|$direction|$rule"
     fun displayDirection(): String = direction
+    fun displayPeriod(): String = periodLabel(period)
 }
 
 @Serializable
@@ -135,6 +147,15 @@ data class LlmAdvice(
     fun key(): String = "$symbol|$bar_ts|$rule|$created_at"
     fun isBackfilled(): Boolean = backfilled != 0
     fun isDeviation(): Boolean = action in setOf("skip", "halve", "double")
+
+    /** Display name for the advice action code (server stores English codes). */
+    fun displayAction(): String = when (action) {
+        "follow" -> "跟随"
+        "skip" -> "跳过"
+        "halve" -> "减半"
+        "double" -> "加倍"
+        else -> action
+    }
 
     /** Parsed reason/confidence from the inner advice JSON, best effort. */
     fun parsedReason(): String {

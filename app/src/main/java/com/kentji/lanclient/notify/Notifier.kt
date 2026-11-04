@@ -25,12 +25,12 @@ object Notifier {
             ch.description = desc
             mgr.createNotificationChannel(ch)
         }
-        channel(CH_SIGNAL, "S1 Signal", NotificationManager.IMPORTANCE_HIGH, "Fired signals")
-        channel(CH_PAPER, "Paper trades", NotificationManager.IMPORTANCE_DEFAULT, "Paper order fills")
-        channel(CH_AI, "AI deviation", NotificationManager.IMPORTANCE_HIGH, "AI advice that deviates from the plan")
-        channel(CH_WATCH, "Watch pool", NotificationManager.IMPORTANCE_DEFAULT, "Observation-pool signals")
-        channel(CH_SYSTEM, "System", NotificationManager.IMPORTANCE_LOW, "Offline and service status")
-        channel(CH_SERVICE, "Monitoring", NotificationManager.IMPORTANCE_LOW, "Ongoing local monitoring")
+        channel(CH_SIGNAL, "S1 信号", NotificationManager.IMPORTANCE_HIGH, "已触发的信号")
+        channel(CH_PAPER, "虚拟成交", NotificationManager.IMPORTANCE_DEFAULT, "虚拟单成交")
+        channel(CH_AI, "AI 偏离", NotificationManager.IMPORTANCE_HIGH, "与计划偏离的 AI 建议")
+        channel(CH_WATCH, "观察池", NotificationManager.IMPORTANCE_DEFAULT, "观察池信号")
+        channel(CH_SYSTEM, "系统", NotificationManager.IMPORTANCE_LOW, "离线与服务状态")
+        channel(CH_SERVICE, "监控中", NotificationManager.IMPORTANCE_LOW, "本地持续监控")
     }
 
     private fun contentIntent(context: Context, route: String): PendingIntent {
@@ -85,10 +85,10 @@ object Notifier {
         )
         return NotificationCompat.Builder(context, CH_SERVICE)
             .setSmallIcon(android.R.drawable.stat_notify_more)
-            .setContentTitle("LanClient monitoring")
+            .setContentTitle("LanClient 监控中")
             .setContentText(text)
             .setOngoing(true)
-            .addAction(0, "Stop", stopPi)
+            .addAction(0, "停止", stopPi)
             .setContentIntent(contentIntent(context, "signals"))
             .build()
     }

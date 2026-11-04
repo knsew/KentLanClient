@@ -30,30 +30,30 @@ fun SignalDetailScreen(vm: MainViewModel, leg: Leg) {
     val pending = vm.pendingFor(leg)
     LazyColumn(Modifier.fillMaxSize().padding(16.dp)) {
         item {
-            Text("${leg.name.ifEmpty { leg.sym }}  ${leg.period}", style = MaterialTheme.typography.titleLarge)
+            Text("${leg.name.ifEmpty { leg.sym }}  ${leg.displayPeriod()}", style = MaterialTheme.typography.titleLarge)
             Text(
                 "${leg.direction} · ${leg.rule} · ${leg.tier_name ?: ""} · ${leg.suggested_size ?: ""}u",
                 style = MaterialTheme.typography.bodyLarge
             )
-            Text("Bar: ${leg.bar_ts ?: ""} · Price: ${leg.px ?: ""}", style = MaterialTheme.typography.bodyMedium)
+            Text("K线：${leg.bar_ts ?: ""} · 价格：${leg.px ?: ""}", style = MaterialTheme.typography.bodyMedium)
             Spacer(Modifier.height(12.dp))
         }
         item {
-            Text("Paper order", style = MaterialTheme.typography.titleMedium)
+            Text("虚拟挂单", style = MaterialTheme.typography.titleMedium)
             if (pending != null) {
                 Text("${pending.direction} ${pending.target_u}u · ${pending.created_at}")
             } else {
-                Text("No pending order for this event.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("该事件暂无虚拟挂单。", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(12.dp))
-            Text("AI advice", style = MaterialTheme.typography.titleMedium)
+            Text("AI 建议", style = MaterialTheme.typography.titleMedium)
             if (advice != null) {
-                Text("Action: ${advice.action}${if (advice.isBackfilled()) " · 事后补做" else ""}")
+                Text("建议：${advice.displayAction()}${if (advice.isBackfilled()) " · 事后补做" else ""}")
                 Text(advice.parsedReason())
-                advice.parsedConfidence()?.let { Text("Confidence: $it") }
-                Text("Created: ${advice.created_at}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                advice.parsedConfidence()?.let { Text("置信度：$it") }
+                Text("生成时间：${advice.created_at}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
-                Text("No AI advice yet for this event.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("该事件暂无 AI 建议。", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -67,27 +67,29 @@ fun ChartDetailScreen(vm: MainViewModel, code: String, name: String) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("$name ($code)", style = MaterialTheme.typography.titleLarge)
         Row {
-            for (p in listOf("15m", "30m", "60m", "1d", "1m", "5m")) {
+            for ((p, label) in listOf(
+                "1m" to "1分钟", "5m" to "5分钟", "15m" to "15分钟",
+                "30m" to "30分钟", "60m" to "60分钟", "1d" to "日线"
+            )) {
                 Button(
                     onClick = { period = p },
                     modifier = Modifier.padding(end = 4.dp)
-                ) { Text(p) }
+                ) { Text(label) }
             }
         }
         Spacer(Modifier.height(8.dp))
         val data = chart
         if (data == null) {
-            Text("Loading chart...")
+            Text("正在加载图表…")
         } else if (data.candles.isEmpty()) {
-            Text("No chart data for $code $period.")
+            Text("$code ${com.kentji.lanclient.data.periodLabel(period)} 暂无图表数据。")
         } else {
             if (!data.fresh) {
-                Text("Data is not fresh (last: ${data.lastTs ?: ""}).", color = MaterialTheme.colorScheme.error)
+                Text("数据不是最新的（最后：${data.lastTs ?: ""}）。", color = MaterialTheme.colorScheme.error)
             }
             ChartView(data)
             Text(
-                "Drag to pan, pinch to zoom, tap for crosshair, double-tap to reset. " +
-                    "Triangles mark S1 buy/sell points.",
+                "左右拖动平移，双指缩放，点击看十字线，双击复位。三角标记为 S1 买卖点。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -107,14 +109,14 @@ fun PaperDetailScreen(vm: MainViewModel, symbol: String) {
                 EquityLine(equity.map { it.date to it.equity })
             }
             Spacer(Modifier.height(12.dp))
-            Text("Trades", style = MaterialTheme.typography.titleMedium)
+            Text("成交记录", style = MaterialTheme.typography.titleMedium)
         }
         items(trades, key = { it.key() + it.fill_ts }) { t ->
             Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                 Column(Modifier.padding(12.dp)) {
                     Text("${t.side} ${t.qty} @ ${t.price}", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Bar ${t.bar_ts} · Fill ${t.fill_ts} · Position ${t.position_after} · Cash ${t.cash_after}",
+                        "K线 ${t.bar_ts} · 成交 ${t.fill_ts} · 成交后仓位 ${t.position_after} · 成交后现金 ${t.cash_after}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

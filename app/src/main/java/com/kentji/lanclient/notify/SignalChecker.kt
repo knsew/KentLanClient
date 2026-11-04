@@ -26,7 +26,7 @@ object SignalChecker {
             if (store.notifyEnabled(Notifier.CH_SYSTEM)) {
                 Notifier.push(
                     context, Notifier.CH_SYSTEM, 9001,
-                    "Server unreachable", "Local server is offline or unreachable. No signal will be shown.",
+                    "服务器无法连接", "本地服务器离线或无法连接，不会显示信号。",
                     "settings"
                 )
             }
@@ -52,15 +52,15 @@ object SignalChecker {
                 p.symbol == leg.sym && p.signal_bar_ts == leg.bar_ts
             }?.value
             val text = buildString {
-                append("${leg.name} ${leg.period} ${leg.direction}")
+                append("${leg.name} ${leg.displayPeriod()} ${leg.direction}")
                 if (leg.tier_name != null) append(" ${leg.tier_name}")
                 if (leg.suggested_size != null) append(" ${leg.suggested_size}u")
                 if (leg.px != null) append(" @ ${leg.px}")
-                if (pend != null) append(" · Paper order pending ${pend.target_u}u")
+                if (pend != null) append(" · 虚拟单已挂单 ${pend.target_u}u")
             }
             Notifier.push(
                 context, Notifier.CH_SIGNAL, key.hashCode(),
-                "Signal: ${leg.name} ${leg.period}",
+                "信号：${leg.name} ${leg.displayPeriod()}",
                 text, "signals"
             )
             seenSignal.add(key)
@@ -77,8 +77,8 @@ object SignalChecker {
                 if (key in seenAi) continue
                 Notifier.push(
                     context, Notifier.CH_AI, key.hashCode(),
-                    "AI deviation: ${ad.symbol} ${ad.period}",
-                    "${ad.action}: ${ad.parsedReason()}", "signals"
+                    "AI 偏离：${ad.symbol} ${com.kentji.lanclient.data.periodLabel(ad.period)}",
+                    "${ad.displayAction()}：${ad.parsedReason()}", "signals"
                 )
                 seenAi.add(key)
             }
@@ -94,11 +94,11 @@ object SignalChecker {
                 for (trade in api.paperTrades(sym)) {
                     val key = trade.key()
                     if (key in seenPaper) continue
-                    val sideText = if (trade.side == "buy") "Buy" else "Sell"
+                    val sideText = if (trade.side == "buy") "买入" else "卖出"
                     Notifier.push(
                         context, Notifier.CH_PAPER, key.hashCode(),
-                        "Paper filled: $sym",
-                        "$sideText ${trade.qty} @ ${trade.price}, position ${trade.position_after}, cash ${trade.cash_after}",
+                        "虚拟成交：$sym",
+                        "$sideText ${trade.qty} @ ${trade.price}，仓位 ${trade.position_after}，现金 ${trade.cash_after}",
                         "paper"
                     )
                     seenPaper.add(key)
@@ -117,7 +117,7 @@ object SignalChecker {
                 if (key in seenWatch) continue
                 Notifier.push(
                     context, Notifier.CH_WATCH, key.hashCode(),
-                    "Watch: ${leg.name} ${leg.period}",
+                    "观察：${leg.name} ${leg.displayPeriod()}",
                     "${leg.direction} ${leg.rule}", "watch"
                 )
                 seenWatch.add(key)

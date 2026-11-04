@@ -38,7 +38,7 @@ class SignalService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        startForeground(NOTIF_ID, Notifier.serviceNotification(this, "Monitoring local server"))
+        startForeground(NOTIF_ID, Notifier.serviceNotification(this, "正在监控本地服务器"))
         job?.cancel()
         job = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {

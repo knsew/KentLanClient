@@ -42,7 +42,7 @@ fun LegRow(leg: Leg, extra: String = "", onClick: (() -> Unit)? = null) {
     ) {
         Column(Modifier.padding(12.dp)) {
             Text(
-                "${leg.name.ifEmpty { leg.sym }}  ${leg.period}  ${leg.direction}",
+                "${leg.name.ifEmpty { leg.sym }}  ${leg.displayPeriod()}  ${leg.direction}",
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
@@ -71,7 +71,7 @@ fun SignalsScreen(vm: MainViewModel, onLeg: (Leg) -> Unit) {
         if (offline) {
             item {
                 Text(
-                    "Server offline: showing last known data. No signal will be shown as live.",
+                    "服务器离线：显示上次已知数据，信号不按实时展示。",
                     color = MaterialTheme.colorScheme.error
                 )
                 Spacer(Modifier.height(8.dp))
@@ -79,12 +79,12 @@ fun SignalsScreen(vm: MainViewModel, onLeg: (Leg) -> Unit) {
         }
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Today's fired signals", style = MaterialTheme.typography.titleLarge)
+                Text("今日已触发信号", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.weight(1f))
                 FilterChip(
                     selected = onlyDeviation,
                     onClick = { onlyDeviation = !onlyDeviation },
-                    label = { Text("AI deviation only") }
+                    label = { Text("仅看 AI 偏离") }
                 )
             }
             Spacer(Modifier.height(8.dp))
@@ -99,23 +99,23 @@ fun SignalsScreen(vm: MainViewModel, onLeg: (Leg) -> Unit) {
             }
         } else fired
         if (shown.isEmpty()) {
-            item { Text("No fired signals today yet.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { Text("今日暂无已触发信号。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         items(shown, key = { it.eventKey() }) { leg ->
             val ad = vm.adviceFor(leg)
             val extra = when {
                 ad == null -> ""
-                ad.isBackfilled() -> "AI ${ad.action} · 事后补做"
-                ad.isDeviation() -> "AI ${ad.action} · 偏离"
-                else -> "AI ${ad.action}"
+                ad.isBackfilled() -> "AI ${ad.displayAction()} · 事后补做"
+                ad.isDeviation() -> "AI ${ad.displayAction()} · 偏离"
+                else -> "AI ${ad.displayAction()}"
             }
             LegRow(leg, extra) { onLeg(leg) }
         }
         item {
             Spacer(Modifier.height(16.dp))
-            Text("Preview (not yet fired)", style = MaterialTheme.typography.titleLarge)
+            Text("接近触发（尚未触发）", style = MaterialTheme.typography.titleLarge)
             Text(
-                "Preview means: if the current bar closed at the current price, it would fire. It is not a signal.",
+                "接近触发的意思是：如果当前 K 线按现价收盘，就会触发。这不是信号。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -124,17 +124,17 @@ fun SignalsScreen(vm: MainViewModel, onLeg: (Leg) -> Unit) {
         items(vm.previewItems(), key = { "${it.sym}${it.period}${it.direction}" }) { p ->
             Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                 Column(Modifier.padding(12.dp)) {
-                    Text("${p.name.ifEmpty { p.sym }}  ${p.period}  ${p.direction}", style = MaterialTheme.typography.titleMedium)
+                    Text("${p.name.ifEmpty { p.sym }}  ${com.kentji.lanclient.data.periodLabel(p.period)}  ${p.direction}", style = MaterialTheme.typography.titleMedium)
                     Text(p.text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
         item {
             Spacer(Modifier.height(16.dp))
-            Text("Current legs", style = MaterialTheme.typography.titleLarge)
+            Text("当前信号腿", style = MaterialTheme.typography.titleLarge)
         }
         items(signals?.legs.orEmpty(), key = { it.eventKey() }) { leg ->
-            LegRow(leg, if (leg.signal) "Fired" else if (leg.cooled) "Cooling" else "") { onLeg(leg) }
+            LegRow(leg, if (leg.signal) "已触发" else if (leg.cooled) "冷却中" else "") { onLeg(leg) }
         }
     }
 }
@@ -144,7 +144,7 @@ fun MarketScreen(vm: MainViewModel, onStock: (String, String) -> Unit) {
     val stocks by vm.stocks.collectAsState()
     LazyColumn(Modifier.fillMaxSize().padding(16.dp)) {
         if (stocks.isEmpty()) {
-            item { Text("No data. Pull to refresh from Settings, or check the server address.") }
+            item { Text("暂无数据。请到设置页刷新，或检查服务器地址。") }
         }
         items(stocks, key = { it.code }) { s ->
             val up = (s.chg_pct ?: 0.0) >= 0
@@ -172,26 +172,26 @@ fun PaperScreen(vm: MainViewModel, onSymbol: (String) -> Unit) {
     val paper by vm.paper.collectAsState()
     val pending by vm.pending.collectAsState()
     LazyColumn(Modifier.fillMaxSize().padding(16.dp)) {
-        item { Text("Paper accounts", style = MaterialTheme.typography.titleLarge) }
+        item { Text("虚拟账户", style = MaterialTheme.typography.titleLarge) }
         items(paper, key = { it.symbol }) { a ->
             Card(Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { onSymbol(a.symbol) }) {
                 Column(Modifier.padding(12.dp)) {
                     Text("${a.name} (${a.symbol})", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Qty ${a.qty} · Cash ${a.cash} · Equity ${a.total_equity} · Return ${a.return_pct}%",
+                        "持仓 ${a.qty} · 现金 ${a.cash} · 总资产 ${a.total_equity} · 收益 ${a.return_pct}%",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (a.valuation_stale) Text("Valuation stale", color = MaterialTheme.colorScheme.error)
+                    if (a.valuation_stale) Text("估值已过期", color = MaterialTheme.colorScheme.error)
                 }
             }
         }
         item {
             Spacer(Modifier.height(16.dp))
-            Text("Pending orders", style = MaterialTheme.typography.titleLarge)
+            Text("挂单中", style = MaterialTheme.typography.titleLarge)
         }
         if (pending.isEmpty()) {
-            item { Text("No pending orders.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            item { Text("暂无挂单。", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
         items(pending, key = { it.key() }) { p ->
             Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -208,13 +208,13 @@ fun PaperScreen(vm: MainViewModel, onSymbol: (String) -> Unit) {
 fun WatchScreen(vm: MainViewModel) {
     val obs by vm.obs.collectAsState()
     LazyColumn(Modifier.fillMaxSize().padding(16.dp)) {
-        item { Text("Daily MR", style = MaterialTheme.typography.titleLarge) }
-        items(obs.dailyMr, key = { it.eventKey() }) { LegRow(it, if (it.signal) "Fired" else "") }
+        item { Text("日线均值回归", style = MaterialTheme.typography.titleLarge) }
+        items(obs.dailyMr, key = { it.eventKey() }) { LegRow(it, if (it.signal) "已触发" else "") }
         item {
             Spacer(Modifier.height(16.dp))
-            Text("Strategy H", style = MaterialTheme.typography.titleLarge)
+            Text("策略 H", style = MaterialTheme.typography.titleLarge)
         }
-        items(obs.strategyH, key = { it.eventKey() }) { LegRow(it, if (it.signal) "Fired" else "") }
+        items(obs.strategyH, key = { it.eventKey() }) { LegRow(it, if (it.signal) "已触发" else "") }
     }
 }
 
@@ -232,44 +232,51 @@ fun SettingsScreen(vm: MainViewModel, onTest: suspend () -> Boolean) {
     var notifyWatch by remember { mutableStateOf(store.notifyEnabled(Notifier.CH_WATCH)) }
     LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         item {
-            Text("Server address", style = MaterialTheme.typography.titleLarge)
+            Text("服务器地址", style = MaterialTheme.typography.titleLarge)
             OutlinedTextField(
                 value = urlText, onValueChange = { urlText = it },
-                label = { Text("Base URL") }, modifier = Modifier.fillMaxWidth()
+                label = { Text("服务器地址") }, modifier = Modifier.fillMaxWidth()
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { vm.setBaseUrl(urlText); vm.refreshAll() }) { Text("Save") }
+                Button(onClick = { vm.setBaseUrl(urlText); vm.refreshAll() }) { Text("保存") }
                 Button(onClick = {
-                    testResult = "Testing..."
+                    testResult = "测试中…"
                     vm.setBaseUrl(urlText)
                     scope.launch {
-                        testResult = if (onTest()) "Connected" else "Failed: server unreachable"
+                        testResult = if (onTest()) "连接成功" else "连接失败：服务器无法连接"
                     }
-                }) { Text("Test connection") }
+                }) { Text("测试连接") }
             }
             testResult?.let { Text(it) }
             Text(
-                "Default: http://10.1.1.7:5888/ . Change it here if your server moves. " +
-                    "Battery-optimization exemption keeps background checks on time; if denied, checks fall back to the 15-minute schedule.",
+                "默认：http://10.1.1.7:5888/。服务器地址变了就在这里改。" +
+                    "后台检查要准时，需要允许忽略电池优化；如果没给权限，检查会退回 15 分钟一次。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         item {
-            Text("Notifications", style = MaterialTheme.typography.titleLarge)
-            NotificationToggle("S1 signals", notifySignal) { notifySignal = it; store.setNotifyEnabled(Notifier.CH_SIGNAL, it) }
-            NotificationToggle("Paper fills", notifyPaper) { notifyPaper = it; store.setNotifyEnabled(Notifier.CH_PAPER, it) }
-            NotificationToggle("AI deviation", notifyAi) { notifyAi = it; store.setNotifyEnabled(Notifier.CH_AI, it) }
-            NotificationToggle("Watch pool", notifyWatch) { notifyWatch = it; store.setNotifyEnabled(Notifier.CH_WATCH, it) }
+            Text("通知", style = MaterialTheme.typography.titleLarge)
+            NotificationToggle("S1 信号", notifySignal) { notifySignal = it; store.setNotifyEnabled(Notifier.CH_SIGNAL, it) }
+            NotificationToggle("虚拟成交", notifyPaper) { notifyPaper = it; store.setNotifyEnabled(Notifier.CH_PAPER, it) }
+            NotificationToggle("AI 偏离建议", notifyAi) { notifyAi = it; store.setNotifyEnabled(Notifier.CH_AI, it) }
+            NotificationToggle("观察池", notifyWatch) { notifyWatch = it; store.setNotifyEnabled(Notifier.CH_WATCH, it) }
         }
         item {
-            Text("Theme", style = MaterialTheme.typography.titleLarge)
+            Text("主题", style = MaterialTheme.typography.titleLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { vm.setThemeMode("system") }) { Text("System") }
-                Button(onClick = { vm.setThemeMode("light") }) { Text("Light") }
-                Button(onClick = { vm.setThemeMode("dark") }) { Text("Dark") }
+                Button(onClick = { vm.setThemeMode("system") }) { Text("跟随系统") }
+                Button(onClick = { vm.setThemeMode("light") }) { Text("浅色") }
+                Button(onClick = { vm.setThemeMode("dark") }) { Text("深色") }
             }
-            Text("Current: $themeMode", style = MaterialTheme.typography.bodySmall)
+            Text(
+                "当前：" + when (themeMode) {
+                    "light" -> "浅色"
+                    "dark" -> "深色"
+                    else -> "跟随系统"
+                },
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
