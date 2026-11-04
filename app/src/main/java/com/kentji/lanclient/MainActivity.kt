@@ -11,11 +11,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -87,9 +87,9 @@ class MainActivity : ComponentActivity() {
                         NavigationBar {
                             for ((route, label, icon) in listOf(
                                 Triple("signals", "信号", Icons.Filled.Notifications),
-                                Triple("market", "看盘", Icons.Filled.Search),
-                                Triple("paper", "虚拟交易", Icons.Filled.Favorite),
-                                Triple("watch", "观察池", Icons.Filled.Home),
+                                Triple("market", "看盘", Icons.Filled.ShowChart),
+                                Triple("paper", "虚拟交易", Icons.Filled.MonetizationOn),
+                                Triple("watch", "观察池", Icons.Filled.Visibility),
                                 Triple("settings", "设置", Icons.Filled.Settings)
                             )) {
                                 NavigationBarItem(

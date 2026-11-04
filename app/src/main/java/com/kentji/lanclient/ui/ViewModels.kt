@@ -51,6 +51,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val equity: StateFlow<List<EquityPoint>> = _equity
     private val _chart = MutableStateFlow<ChartData?>(null)
     val chart: StateFlow<ChartData?> = _chart
+    private val _chartError = MutableStateFlow(false)
+    val chartError: StateFlow<Boolean> = _chartError
 
     fun setBaseUrl(url: String) {
         store.baseUrl = url
@@ -87,7 +89,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun loadChart(code: String, period: String) {
         viewModelScope.launch {
             _chart.value = null
-            _chart.value = api.chart(code, period, 300)
+            _chartError.value = false
+            val data = api.chart(code, period, 300)
+            _chart.value = data
+            _chartError.value = data == null
         }
     }
 

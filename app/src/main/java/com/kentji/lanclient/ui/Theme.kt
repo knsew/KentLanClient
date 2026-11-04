@@ -14,9 +14,10 @@ import androidx.compose.ui.platform.LocalContext
 private val LightScheme = lightColorScheme()
 private val DarkScheme = darkColorScheme()
 
-/** Up = red, down = green (local market convention). Always paired with text. */
-val UpColor = Color(0xFFD32F2F)
-val DownColor = Color(0xFF2E7D32)
+/** Up = red, down = green (local market convention). Always paired with text.
+ *  Bright enough to read on the dark theme, still legible on light. */
+val UpColor = Color(0xFFE53935)
+val DownColor = Color(0xFF43A047)
 
 @Composable
 fun LanClientTheme(mode: String, content: @Composable () -> Unit) {

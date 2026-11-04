@@ -5,6 +5,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.floatOrNull
@@ -234,16 +236,22 @@ class ApiClient(baseUrl: String) {
             collectMarks(s1, "S1")
             collectMarks(indicators?.get("volume"), "量能")
             collectMarks(indicators?.get("swing"), "短摆")
-            // S1 pos line: best effort. pos_lines entries may carry a "values" array.
+            // S1 pos line: best effort. Server sends pos_lines as a dict
+            // keyed by leg (e.g. {"20": [...]}), not a list; tolerate both.
             val pos = mutableListOf<Float?>()
-            val posLines = s1?.get("pos_lines")?.jsonArray
-            if (posLines != null && posLines.isNotEmpty()) {
-                val first = posLines[0].jsonObject
-                val values = first["values"]?.jsonArray
-                    ?: first["data"]?.jsonArray
-                if (values != null) {
-                    for (v in values) pos.add(v.jsonPrimitive.floatOrNull)
+            val posEl = s1?.get("pos_lines")
+            val posValues: JsonArray? = when {
+                posEl == null || posEl is JsonNull -> null
+                posEl is JsonArray -> posEl.firstOrNull()?.jsonObject?.let {
+                    it["values"]?.takeIf { v -> v !is JsonNull }?.jsonArray
+                        ?: it["data"]?.takeIf { v -> v !is JsonNull }?.jsonArray
                 }
+                posEl is JsonObject -> posEl.values.firstOrNull()
+                    ?.takeIf { v -> v !is JsonNull }?.jsonArray
+                else -> null
+            }
+            if (posValues != null) {
+                for (v in posValues) pos.add(v.jsonPrimitive.floatOrNull)
             }
             val fresh = root["freshness"]?.jsonObject?.boolVal("fresh") ?: false
             ChartData(

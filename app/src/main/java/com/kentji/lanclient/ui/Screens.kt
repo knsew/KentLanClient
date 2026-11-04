@@ -28,6 +28,9 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.kentji.lanclient.data.Leg
 import com.kentji.lanclient.notify.Notifier
@@ -42,7 +45,19 @@ fun LegRow(leg: Leg, extra: String = "", onClick: (() -> Unit)? = null) {
     ) {
         Column(Modifier.padding(12.dp)) {
             Text(
-                "${leg.name.ifEmpty { leg.sym }}  ${leg.displayPeriod()}  ${leg.direction}",
+                buildAnnotatedString {
+                    append("${leg.name.ifEmpty { leg.sym }}  ${leg.displayPeriod()}  ")
+                    val dirColor = when (leg.direction) {
+                        "加仓" -> UpColor
+                        "减仓" -> DownColor
+                        else -> null
+                    }
+                    if (dirColor != null) {
+                        withStyle(SpanStyle(color = dirColor)) { append(leg.direction) }
+                    } else {
+                        append(leg.direction)
+                    }
+                },
                 style = MaterialTheme.typography.titleMedium
             )
             Text(

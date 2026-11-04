@@ -1,7 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- LanClient launcher foreground: three candlesticks on the green background. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
+    <!-- wicks -->
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="3"
+        android:pathData="M28,28 L28,80" />
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="3"
+        android:pathData="M54,20 L54,88" />
+    <path android:strokeColor="#FFFFFF" android:strokeWidth="3"
+        android:pathData="M80,36 L80,72" />
+    <!-- candle bodies: up, down (red), up -->
     <path android:fillColor="#FFFFFF"
-        android:pathData="M54,20 L84,54 L54,88 L24,54 Z" />
+        android:pathData="M20,40 L36,40 L36,66 L20,66 Z" />
+    <path android:fillColor="#FF5252"
+        android:pathData="M46,30 L62,30 L62,58 L46,58 Z" />
+    <path android:fillColor="#FFFFFF"
+        android:pathData="M72,48 L88,48 L88,70 L72,70 Z" />
 </vector>

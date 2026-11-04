@@ -1,5 +1,6 @@
 package com.kentji.lanclient.ui
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,7 +10,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -62,24 +65,36 @@ fun SignalDetailScreen(vm: MainViewModel, leg: Leg) {
 @Composable
 fun ChartDetailScreen(vm: MainViewModel, code: String, name: String) {
     val chart by vm.chart.collectAsState()
+    val chartError by vm.chartError.collectAsState()
     var period by remember { mutableStateOf("60m") }
     LaunchedEffect(code, period) { vm.loadChart(code, period) }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("$name ($code)", style = MaterialTheme.typography.titleLarge)
-        Row {
+        Row(Modifier.horizontalScroll(rememberScrollState())) {
             for ((p, label) in listOf(
                 "1m" to "1分钟", "5m" to "5分钟", "15m" to "15分钟",
                 "30m" to "30分钟", "60m" to "60分钟", "1d" to "日线"
             )) {
+                val selected = period == p
                 Button(
                     onClick = { period = p },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
                     modifier = Modifier.padding(end = 4.dp)
                 ) { Text(label) }
             }
         }
         Spacer(Modifier.height(8.dp))
         val data = chart
-        if (data == null) {
+        if (chartError) {
+            Text("图表加载失败，请检查服务器地址后重试。", color = MaterialTheme.colorScheme.error)
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = { vm.loadChart(code, period) }) { Text("重新加载") }
+        } else if (data == null) {
             Text("正在加载图表…")
         } else if (data.candles.isEmpty()) {
             Text("$code ${com.kentji.lanclient.data.periodLabel(period)} 暂无图表数据。")
