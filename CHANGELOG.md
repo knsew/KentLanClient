@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+- Chart rebuilt following MPAndroidChart / Vico anatomy (no new dependency): right price axis with gridlines, bottom time axis, volume pane, dashed crosshair with OHLC info box and axis price tags, last-price line colored by up/down.
+- Fix: volume bars were invisible because server volume is a float and the parser used longOrNull (every bar became 0).
+- Market prices are now bold; chart hint text updated.
+
 ## 0.1.2
 
 - Fix: chart page stuck on "loading" — server sends S1 pos_lines as a dict, not a list, and the parser threw it away; now both shapes parse, and a failed chart load shows an error with a retry button instead of loading forever.

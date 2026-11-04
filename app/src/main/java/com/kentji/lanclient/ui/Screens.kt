@@ -170,7 +170,11 @@ fun MarketScreen(vm: MainViewModel, onStock: (String, String) -> Unit) {
                         Text(s.quote_date ?: "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(s.last_px?.toString() ?: "-", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            s.last_px?.toString() ?: "-",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
                         Text(
                             if (s.chg_pct != null) "${if (up) "▲" else "▼"} ${s.chg_pct}%" else "-",
                             color = if (up) UpColor else DownColor

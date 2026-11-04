@@ -104,7 +104,7 @@ fun ChartDetailScreen(vm: MainViewModel, code: String, name: String) {
             }
             ChartView(data)
             Text(
-                "左右拖动平移，双指缩放，点击看十字线，双击复位。三角标记为 S1 买卖点。",
+                "左右拖动平移，双指缩放，点击看十字线与开高低收，双击复位。右侧为价格轴，下方为成交量，三角为 S1 买卖点。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

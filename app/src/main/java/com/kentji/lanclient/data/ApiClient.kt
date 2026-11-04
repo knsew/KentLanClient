@@ -13,7 +13,6 @@ import kotlinx.serialization.json.floatOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -213,7 +212,9 @@ class ApiClient(baseUrl: String) {
                     close = a[2].jsonPrimitive.floatOrNull ?: 0f,
                     low = a[3].jsonPrimitive.floatOrNull ?: 0f,
                     high = a[4].jsonPrimitive.floatOrNull ?: 0f,
-                    volume = a[5].jsonPrimitive.longOrNull ?: 0L,
+                    // Server sends volume as a float (e.g. 54261200.0);
+                    // longOrNull fails on the ".0" and silently zeroed every bar.
+                    volume = (a[5].jsonPrimitive.doubleOrNull ?: 0.0).toLong(),
                 )
             }
             val indicators = root["indicators"]?.jsonObject
