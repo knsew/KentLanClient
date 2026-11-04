@@ -3,6 +3,7 @@ package com.kentji.lanclient.data
 import android.content.Context
 import android.content.SharedPreferences
 import java.io.File
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
@@ -59,7 +60,7 @@ class Store(context: Context) {
             try {
                 val obj = buildJsonObject {
                     for ((k, v) in map) {
-                        put(k, buildJsonArray { for (s in v.sorted()) add(s) })
+                        put(k, buildJsonArray { for (s in v.sorted()) add(JsonPrimitive(s)) })
                     }
                 }
                 notifiedFile.writeText(obj.toString())
