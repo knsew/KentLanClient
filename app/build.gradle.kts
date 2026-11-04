@@ -7,14 +7,14 @@ plugins {
 
 android {
     namespace = "com.kentji.lanclient"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.kentji.lanclient"
         minSdk = 26
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.1.4"
     }
 
     buildTypes {
@@ -53,4 +53,5 @@ dependencies {
     implementation(libs.androidx.workmanager)
     implementation(libs.okhttp)
     implementation(libs.serialization.json)
+    implementation(libs.vico.compose.m3)
 }

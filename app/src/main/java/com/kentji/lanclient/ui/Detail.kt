@@ -1,16 +1,15 @@
 package com.kentji.lanclient.ui
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -70,11 +69,19 @@ fun ChartDetailScreen(vm: MainViewModel, code: String, name: String) {
     LaunchedEffect(code, period) { vm.loadChart(code, period) }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("$name ($code)", style = MaterialTheme.typography.titleLarge)
-        Row(Modifier.horizontalScroll(rememberScrollState())) {
-            for ((p, label) in listOf(
-                "1m" to "1分钟", "5m" to "5分钟", "15m" to "15分钟",
-                "30m" to "30分钟", "60m" to "60分钟", "1d" to "日线"
-            )) {
+        val periods = listOf(
+            "1m" to "1分钟", "5m" to "5分钟", "15m" to "15分钟",
+            "30m" to "30分钟", "60m" to "60分钟", "1d" to "日线"
+        )
+        // The selected period is scrolled into view, so the default 60分钟
+        // is never cut off at the right edge on first open.
+        val periodState = rememberLazyListState()
+        LaunchedEffect(period) {
+            val idx = periods.indexOfFirst { it.first == period }
+            if (idx >= 0) periodState.scrollToItem(idx)
+        }
+        LazyRow(state = periodState) {
+            items(periods) { (p, label) ->
                 val selected = period == p
                 Button(
                     onClick = { period = p },
@@ -104,7 +111,7 @@ fun ChartDetailScreen(vm: MainViewModel, code: String, name: String) {
             }
             ChartView(data)
             Text(
-                "左右拖动平移，双指缩放，点击看十字线与开高低收，双击复位。右侧为价格轴，下方为成交量，三角为 S1 买卖点。",
+                "左右拖动平移，双指缩放，点击 K 线看开高低收；三角为 S1 买卖点。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

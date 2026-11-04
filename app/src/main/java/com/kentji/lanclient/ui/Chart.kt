@@ -1,24 +1,18 @@
 package com.kentji.lanclient.ui
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -27,191 +21,286 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kentji.lanclient.data.Candle
 import com.kentji.lanclient.data.ChartData
-import kotlin.math.max
-import kotlin.math.min
+import com.kentji.lanclient.data.MarkPoint
+import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisGuidelineComponent
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberAxisLabelComponent
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberEnd
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
+import com.patrykandpatrick.vico.compose.cartesian.layer.absolute
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberCandlestickCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.component.rememberLineComponent
+import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
+import com.patrykandpatrick.vico.compose.common.fill
+import com.patrykandpatrick.vico.core.cartesian.CartesianDrawingContext
+import com.patrykandpatrick.vico.core.cartesian.Scroll
+import com.patrykandpatrick.vico.core.cartesian.Zoom
+import com.patrykandpatrick.vico.core.cartesian.axis.BaseAxis
+import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
+import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.core.cartesian.data.candlestickSeries
+import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
+import com.patrykandpatrick.vico.core.cartesian.decoration.Decoration
+import com.patrykandpatrick.vico.core.cartesian.layer.CandlestickCartesianLayer
+import com.patrykandpatrick.vico.core.cartesian.layer.ColumnCartesianLayer
+import com.patrykandpatrick.vico.core.cartesian.marker.CandlestickCartesianLayerMarkerTarget
+import com.patrykandpatrick.vico.core.cartesian.marker.CartesianMarker
+import com.patrykandpatrick.vico.core.cartesian.marker.DefaultCartesianMarker
+
+// Candle body width and bar spacing, in dp. The price and volume charts
+// use the same values so their shared scroll/zoom state maps to the same
+// x positions in both panes.
+private const val BODY_WIDTH_DP = 8f
+private const val BAR_SPACING_DP = 4f
+
+// Fixed vertical-axis width, in dp, on both charts. The price chart puts
+// its price axis on the right and a blank spacer of the same width on the
+// left; the volume chart mirrors that, so both plot areas line up exactly.
+private const val AXIS_WIDTH_DP = 56f
 
 /**
- * Native stock chart, rebuilt after studying the reference libraries
- * (MPAndroidChart's CandleStickChart + Vico's Cartesian layers):
- * right price axis with gridlines, bottom time axis, volume pane with
- * up/down coloring, dashed crosshair with an OHLC info box and a price
- * tag on the axis, last-price line + tag, S1 buy/sell triangles.
- * Gestures: drag to pan, pinch to zoom, tap for crosshair, double-tap
- * to reset. No third-party chart dependency: the S1 overlays are custom.
+ * Stock chart on Vico (compose-m3 2.1.4): candlestick pane + volume pane,
+ * sharing one scroll/zoom state so dragging and pinching move both panes
+ * together. Tapping a candle shows an OHLC marker; S1 buy/sell points are
+ * drawn by a custom [Decoration] using Vico's own layer coordinates, so
+ * the triangles stay glued to their candles while scrolling and zooming.
  */
 @Composable
 fun ChartView(data: ChartData, modifier: Modifier = Modifier) {
-    val measurer = rememberTextMeasurer()
-    var visibleCount by remember(data) { mutableStateOf(120) }
-    var endIndex by remember(data) { mutableStateOf(data.candles.size) }
-    var crossIndex by remember(data) { mutableStateOf<Int?>(null) }
+    val candles = data.candles
+    if (candles.isEmpty()) return
 
-    Canvas(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(460.dp)
-            .pointerInput(data) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    if (zoom != 1f) {
-                        visibleCount = (visibleCount / zoom).toInt().coerceIn(20, data.candles.size.coerceAtLeast(20))
-                    }
-                    if (pan.x != 0f) {
-                        val step = (-pan.x / 8f).toInt()
-                        endIndex = (endIndex + step).coerceIn(visibleCount, data.candles.size)
-                    }
-                }
+    // Start on the newest bars, showing about 60 at first; pinch in to 20.
+    val scrollState = rememberVicoScrollState(initialScroll = Scroll.Absolute.End)
+    val zoomState = rememberVicoZoomState(
+        zoomEnabled = true,
+        initialZoom = Zoom.x(60.0),
+        minZoom = Zoom.Content,
+        maxZoom = Zoom.x(20.0),
+    )
+
+    val priceProducer = remember { CartesianChartModelProducer() }
+    val volumeProducer = remember { CartesianChartModelProducer() }
+    LaunchedEffect(data) {
+        priceProducer.runTransaction {
+            candlestickSeries(
+                opening = candles.map { it.open.toDouble() },
+                closing = candles.map { it.close.toDouble() },
+                low = candles.map { it.low.toDouble() },
+                high = candles.map { it.high.toDouble() },
+            )
+        }
+        volumeProducer.runTransaction {
+            columnSeries {
+                series(candles.map { if (it.close >= it.open) it.volume.toDouble() else 0.0 })
+                series(candles.map { if (it.close >= it.open) 0.0 else it.volume.toDouble() })
             }
-            .pointerInput(data) {
-                detectTapGestures(
-                    onTap = { offset ->
-                        // Map the tap inside the plot area (axis excluded).
-                        val plotW = size.width - 56.dp.toPx()
-                        val start = max(0, endIndex - visibleCount)
-                        val idx = start + (offset.x.coerceIn(0f, plotW) / plotW * visibleCount).toInt()
-                        crossIndex = idx.coerceIn(0, data.candles.lastIndex)
-                    },
-                    onDoubleTap = {
-                        visibleCount = 120
-                        endIndex = data.candles.size
-                        crossIndex = null
-                    }
+        }
+    }
+
+    val priceFormatter = remember {
+        CartesianValueFormatter { _, value, _ -> "%.2f".format(value) }
+    }
+    val volumeFormatter = remember {
+        CartesianValueFormatter { _, value, _ ->
+            if (value >= 10000) "%.0f万".format(value / 10000) else "%.0f".format(value)
+        }
+    }
+    val timeFormatter = remember(candles, data.period) {
+        CartesianValueFormatter { _, value, _ ->
+            val idx = value.toInt()
+            if (idx in candles.indices) formatTimeLabel(candles[idx].ts, data.period) else ""
+        }
+    }
+    val ohlcFormatter = remember {
+        object : DefaultCartesianMarker.ValueFormatter {
+            override fun format(
+                context: CartesianDrawingContext,
+                targets: List<CartesianMarker.Target>,
+            ): CharSequence {
+                val target = targets.firstOrNull() as? CandlestickCartesianLayerMarkerTarget
+                    ?: return ""
+                val e = target.entry
+                return "开 %.2f 高 %.2f 低 %.2f 收 %.2f".format(
+                    e.opening, e.high, e.low, e.closing
                 )
             }
-    ) {
-        val candles = data.candles
-        if (candles.isEmpty()) return@Canvas
-        val start = max(0, endIndex - visibleCount)
-        val end = min(candles.size, endIndex)
-        val window = candles.subList(start, end)
-        if (window.isEmpty()) return@Canvas
-
-        // ---- Layout: plot area + right price axis + bottom time axis.
-        val axisW = 56.dp.toPx()
-        val timeH = 22.dp.toPx()
-        val plotW = size.width - axisW
-        val plotH = size.height - timeH
-        val candleH = plotH * 0.70f
-        val volTop = candleH + 6f
-        val volH = plotH - volTop
-
-        var lo = Float.MAX_VALUE
-        var hi = Float.MIN_VALUE
-        var maxVol = 1L
-        for (c in window) {
-            lo = min(lo, c.low); hi = max(hi, c.high); maxVol = max(maxVol, c.volume)
         }
-        if (hi <= lo) hi = lo + 1f
-        val pad = (hi - lo) * 0.05f
-        lo -= pad; hi += pad
-        val stepX = plotW / max(1, window.size)
-        val yFor: (Float) -> Float = { px -> candleH - (px - lo) / (hi - lo) * candleH }
-        val gridColor = Color(0xFF3A3A3A)
-        val axisText = TextStyle(color = Color(0xFFB0B0B0), fontSize = 11.sp)
-        val dash = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
+    }
+    val decorations = remember(data) { listOf(S1Decoration(data.marks, candles)) }
 
-        // ---- Price gridlines + right axis labels (5 rows).
-        for (i in 0..4) {
-            val price = lo + (hi - lo) * i / 4f
-            val y = yFor(price)
-            drawLine(gridColor, Offset(0f, y), Offset(plotW, y), strokeWidth = 1f)
-            val label = "%.2f".format(price)
-            val layout = measurer.measure(label, axisText)
-            drawText(
-                measurer, label,
-                topLeft = Offset(plotW + 6f, (y - layout.size.height / 2f).coerceIn(0f, candleH - layout.size.height)),
-                style = axisText
-            )
-        }
-        // Axis + pane separators.
-        drawLine(gridColor, Offset(plotW, 0f), Offset(plotW, plotH), strokeWidth = 1f)
-        drawLine(gridColor, Offset(0f, volTop - 3f), Offset(plotW, volTop - 3f), strokeWidth = 1f)
-        drawLine(gridColor, Offset(0f, plotH), Offset(plotW, plotH), strokeWidth = 1f)
+    val upBody = rememberLineComponent(fill = fill(UpColor), thickness = BODY_WIDTH_DP.dp)
+    val upWick = rememberLineComponent(fill = fill(UpColor), thickness = 1.5.dp)
+    val downBody = rememberLineComponent(fill = fill(DownColor), thickness = BODY_WIDTH_DP.dp)
+    val downWick = rememberLineComponent(fill = fill(DownColor), thickness = 1.5.dp)
 
-        // ---- Volume bars (up red / down green, same convention as candles).
-        for ((i, c) in window.withIndex()) {
-            val x = i * stepX
-            val h = volH * (c.volume.toFloat() / maxVol.toFloat())
-            if (h <= 0f) continue
-            drawRect(
-                color = (if (c.close >= c.open) UpColor else DownColor).copy(alpha = 0.85f),
-                topLeft = Offset(x + 1f, volTop + volH - h),
-                size = Size(stepX - 2f, h)
-            )
-        }
+    Column(modifier.fillMaxWidth()) {
+        CartesianChartHost(
+            chart = rememberCartesianChart(
+                rememberCandlestickCartesianLayer(
+                    candleProvider = CandlestickCartesianLayer.CandleProvider.absolute(
+                        bullish = CandlestickCartesianLayer.Candle(upBody, upWick, upWick),
+                        neutral = CandlestickCartesianLayer.Candle(upBody, upWick, upWick),
+                        bearish = CandlestickCartesianLayer.Candle(downBody, downWick, downWick),
+                    ),
+                    candleSpacing = BAR_SPACING_DP.dp,
+                ),
+                // Blank left spacer so the price plot starts where the
+                // volume plot starts (the volume axis sits on the left).
+                startAxis = VerticalAxis.rememberStart(
+                    line = null,
+                    label = null,
+                    tick = null,
+                    guideline = null,
+                    size = BaseAxis.Size.Fixed(AXIS_WIDTH_DP),
+                ),
+                endAxis = VerticalAxis.rememberEnd(
+                    label = rememberAxisLabelComponent(
+                        color = Color(0xFFB0B0B0), textSize = 11.sp
+                    ),
+                    valueFormatter = priceFormatter,
+                    guideline = rememberAxisGuidelineComponent(),
+                    size = BaseAxis.Size.Fixed(AXIS_WIDTH_DP),
+                ),
+                marker = rememberDefaultCartesianMarker(
+                    label = rememberTextComponent(color = Color.White, textSize = 12.sp),
+                    valueFormatter = ohlcFormatter,
+                    labelPosition = DefaultCartesianMarker.LabelPosition.Top,
+                    guideline = rememberAxisGuidelineComponent(),
+                ),
+                decorations = decorations,
+            ),
+            modelProducer = priceProducer,
+            scrollState = scrollState,
+            zoomState = zoomState,
+            modifier = Modifier.fillMaxWidth().height(320.dp),
+        )
+        CartesianChartHost(
+            chart = rememberCartesianChart(
+                rememberColumnCartesianLayer(
+                    columnProvider = ColumnCartesianLayer.ColumnProvider.series(
+                        listOf(
+                            rememberLineComponent(
+                                fill = fill(UpColor), thickness = BODY_WIDTH_DP.dp
+                            ),
+                            rememberLineComponent(
+                                fill = fill(DownColor), thickness = BODY_WIDTH_DP.dp
+                            ),
+                        )
+                    ),
+                    columnCollectionSpacing = BAR_SPACING_DP.dp,
+                    // Two series (up bars, down bars) with a zero in the
+                    // other series' slots; stacked, they read as one bar
+                    // per x in the right color.
+                    mergeMode = { ColumnCartesianLayer.MergeMode.Stacked },
+                ),
+                startAxis = VerticalAxis.rememberStart(
+                    label = rememberAxisLabelComponent(
+                        color = Color(0xFFB0B0B0), textSize = 11.sp
+                    ),
+                    valueFormatter = volumeFormatter,
+                    guideline = rememberAxisGuidelineComponent(),
+                    size = BaseAxis.Size.Fixed(AXIS_WIDTH_DP),
+                ),
+                // Blank right spacer mirroring the price axis, so the
+                // volume plot ends where the price plot ends.
+                endAxis = VerticalAxis.rememberEnd(
+                    line = null,
+                    label = null,
+                    tick = null,
+                    guideline = null,
+                    size = BaseAxis.Size.Fixed(AXIS_WIDTH_DP),
+                ),
+                bottomAxis = HorizontalAxis.rememberBottom(
+                    label = rememberAxisLabelComponent(
+                        color = Color(0xFFB0B0B0), textSize = 11.sp
+                    ),
+                    valueFormatter = timeFormatter,
+                    itemPlacer = HorizontalAxis.ItemPlacer.aligned(
+                        spacing = { (candles.size / 5).coerceAtLeast(1) }
+                    ),
+                ),
+            ),
+            modelProducer = volumeProducer,
+            scrollState = scrollState,
+            zoomState = zoomState,
+            modifier = Modifier.fillMaxWidth().height(120.dp),
+        )
+    }
+}
 
-        // ---- Candles: wick + body.
-        for ((i, c) in window.withIndex()) {
-            val x = i * stepX + stepX / 2f
-            val color = if (c.close >= c.open) UpColor else DownColor
-            drawLine(color, Offset(x, yFor(c.high)), Offset(x, yFor(c.low)), strokeWidth = 2f)
-            val top = yFor(max(c.open, c.close))
-            val bottom = yFor(min(c.open, c.close))
-            drawRect(
-                color, Offset(x - stepX * 0.35f, top),
-                Size(stepX * 0.7f, max(2f, bottom - top))
-            )
-        }
+/**
+ * S1 buy/sell triangles, drawn over the Vico price pane. The x/y mapping
+ * is copied from Vico's own candlestick layer (same start padding, scroll,
+ * zoom and spacing), so each triangle tracks its candle exactly.
+ */
+private class S1Decoration(
+    marks: List<MarkPoint>,
+    private val candles: List<Candle>,
+) : Decoration {
+    private val indexed: List<Pair<Int, MarkPoint>> = marks.mapNotNull { mark ->
+        candles.indexOfFirst { it.ts == mark.ts }
+            .takeIf { it >= 0 }
+            ?.let { it to mark }
+    }
+    private val upPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        style = android.graphics.Paint.Style.FILL
+        color = UpColor.toArgb()
+    }
+    private val downPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        style = android.graphics.Paint.Style.FILL
+        color = DownColor.toArgb()
+    }
 
-        // ---- S1 marks: triangles above highs (sell) / below lows (buy).
-        val tsToIndex = window.mapIndexed { i, c -> c.ts to i }.toMap()
-        for (mark in data.marks) {
-            val idx = tsToIndex[mark.ts] ?: continue
-            val c = window[idx]
-            val x = idx * stepX + stepX / 2f
-            val isSell = mark.kind == "sell"
-            val yBase = if (isSell) yFor(c.high) - 12f else yFor(c.low) + 12f
-            val path = Path().apply {
+    override fun drawOverLayers(context: CartesianDrawingContext) {
+        if (indexed.isEmpty()) return
+        with(context) {
+            val yRange = ranges.getYRange(null)
+            val dir = layoutDirectionMultiplier.toFloat()
+            val start = if (isLtr) layerBounds.left else layerBounds.right
+            val halfW = (BODY_WIDTH_DP / 2f).pixels * zoom
+            val drawingStart = start + (layerDimensions.startPadding - halfW) * dir - scroll
+            val halfBase = 8f.pixels
+            val triHeight = 10f.pixels
+            val gap = 4f.pixels
+            val path = android.graphics.Path()
+            for ((idx, mark) in indexed) {
+                val mult = ((idx.toDouble() - ranges.minX) / ranges.xStep).toFloat()
+                val cx = drawingStart + dir * layerDimensions.xSpacing * mult + halfW
+                if (cx <= layerBounds.left - 1f || cx >= layerBounds.right + 1f) continue
+                val c = candles[idx]
+                val isSell = mark.kind == "sell"
+                val price = if (isSell) c.high else c.low
+                val cy = layerBounds.bottom -
+                    ((price - yRange.minY) / yRange.length).toFloat() * layerBounds.height()
+                path.reset()
                 if (isSell) {
-                    moveTo(x - 7f, yBase - 10f); lineTo(x + 7f, yBase - 10f); lineTo(x, yBase); close()
+                    // Triangle above the high, pointing down at the candle.
+                    val apexY = cy - gap
+                    path.moveTo(cx - halfBase, apexY - triHeight)
+                    path.lineTo(cx + halfBase, apexY - triHeight)
+                    path.lineTo(cx, apexY)
+                    path.close()
+                    canvas.drawPath(path, downPaint)
                 } else {
-                    moveTo(x - 7f, yBase + 10f); lineTo(x + 7f, yBase + 10f); lineTo(x, yBase); close()
+                    // Triangle below the low, pointing up at the candle.
+                    val apexY = cy + gap
+                    path.moveTo(cx - halfBase, apexY + triHeight)
+                    path.lineTo(cx + halfBase, apexY + triHeight)
+                    path.lineTo(cx, apexY)
+                    path.close()
+                    canvas.drawPath(path, upPaint)
                 }
-            }
-            drawPath(path, if (isSell) DownColor else UpColor)
-        }
-
-        // ---- Time axis labels (up to 5, spread across the window).
-        val timeIdx = (0..4).map { it * (window.size - 1) / 4 }.distinct()
-        for (idx in timeIdx) {
-            val c = window[idx]
-            val label = formatTimeLabel(c.ts, data.period)
-            val layout = measurer.measure(label, axisText)
-            val cx = idx * stepX + stepX / 2f
-            val tx = (cx - layout.size.width / 2f).coerceIn(0f, plotW - layout.size.width)
-            drawText(measurer, label, topLeft = Offset(tx, plotH + 4f), style = axisText)
-        }
-
-        // ---- Last price line + tag (color follows up/down).
-        val last = window.last()
-        val lastColor = if (last.close >= last.open) UpColor else DownColor
-        drawLine(lastColor, Offset(0f, yFor(last.close)), Offset(plotW, yFor(last.close)), strokeWidth = 1f, pathEffect = dash)
-        drawPriceTag(measurer, plotW, yFor(last.close), "%.2f".format(last.close), lastColor, candleH)
-
-        // ---- Crosshair: dashed lines, axis price tag, OHLC info box.
-        crossIndex?.let { ci ->
-            if (ci in start until end) {
-                val local = ci - start
-                val c = window[local]
-                val x = local * stepX + stepX / 2f
-                drawLine(Color.Gray, Offset(x, 0f), Offset(x, plotH), strokeWidth = 1f, pathEffect = dash)
-                drawLine(Color.Gray, Offset(0f, yFor(c.close)), Offset(plotW, yFor(c.close)), strokeWidth = 1f, pathEffect = dash)
-                drawPriceTag(measurer, plotW, yFor(c.close), "%.2f".format(c.close), Color.Gray, candleH)
-                val chg = if (c.open != 0f) (c.close - c.open) / c.open * 100f else 0f
-                val chgText = "%+.2f%%".format(chg)
-                val line1 = formatTimeLabel(c.ts, data.period, full = true)
-                val line2 = "开 %.2f  高 %.2f  低 %.2f  收 %.2f  %s".format(c.open, c.high, c.low, c.close, chgText)
-                val infoStyle = TextStyle(color = Color.White, fontSize = 12.sp)
-                val l1 = measurer.measure(line1, infoStyle)
-                val l2 = measurer.measure(line2, infoStyle)
-                val boxW = max(l1.size.width, l2.size.width) + 20f
-                val boxH = l1.size.height + l2.size.height + 16f
-                val boxX = if (x > plotW / 2f) 8f else plotW - boxW - 8f
-                drawRoundRect(
-                    Color(0xDD1E1E1E), Offset(boxX, 8f), Size(boxW, boxH),
-                    CornerRadius(8f, 8f)
-                )
-                drawText(measurer, line1, topLeft = Offset(boxX + 10f, 14f), style = infoStyle)
-                drawText(measurer, line2, topLeft = Offset(boxX + 10f, 14f + l1.size.height + 4f), style = infoStyle)
             }
         }
     }
@@ -221,29 +310,13 @@ private fun formatTimeLabel(ts: String, period: String, full: Boolean = false): 
     if (ts.length < 10) return ts
     if (full) return if (ts.length >= 16) ts.substring(0, 16).replace('T', ' ') else ts
     if (period == "1d") return ts.substring(0, 10)
-    return if (ts.length >= 16) ts.substring(5, 16) else ts
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawPriceTag(
-    measurer: TextMeasurer,
-    plotW: Float,
-    y: Float,
-    label: String,
-    bg: Color,
-    candleH: Float,
-) {
-    val style = TextStyle(color = Color.White, fontSize = 11.sp)
-    val layout = measurer.measure(label, style)
-    val tagH = layout.size.height + 8f
-    val top = (y - tagH / 2f).coerceIn(0f, candleH - tagH)
-    drawRoundRect(bg, Offset(plotW + 2f, top), Size(layout.size.width + 10f, tagH), CornerRadius(4f, 4f))
-    drawText(measurer, label, topLeft = Offset(plotW + 7f, top + 4f), style = style)
+    return if (ts.length >= 16) ts.substring(5, 16).replace('T', ' ') else ts
 }
 
 @Composable
 fun EquityLine(points: List<Pair<String, Double>>, modifier: Modifier = Modifier) {
     val measurer = rememberTextMeasurer()
-    Canvas(modifier = modifier.fillMaxWidth().height(180.dp)) {
+    androidx.compose.foundation.Canvas(modifier = modifier.fillMaxWidth().height(180.dp)) {
         if (points.size < 2) return@Canvas
         val values = points.map { it.second }
         val lo = values.minOrNull() ?: 0.0
