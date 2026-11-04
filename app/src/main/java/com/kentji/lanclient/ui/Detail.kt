@@ -131,7 +131,7 @@ fun ChartDetailScreen(vm: MainViewModel, code: String, name: String) {
             // no longer ends in a large blank area below the chart.
             ChartView(data, Modifier.weight(1f))
             Text(
-                "左右拖动平移，双指缩放，点击 K 线看开高低收；三角为 S1 买卖点。",
+                "上下滑动看副图，左右拖动平移，双指缩放，点击 K 线看开高低收；三角为 S1 买卖点。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

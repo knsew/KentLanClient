@@ -200,4 +200,37 @@ data class ChartData(
     val marks: List<MarkPoint>,
     val fresh: Boolean,
     val lastTs: String?,
+    // Sub-panels, parsed from /api/chart indicators (web parity).
+    val volRatio: List<Double?> = emptyList(),
+    val volLines: List<ThresholdLine> = emptyList(),
+    val volMarks: List<PaneMark> = emptyList(),
+    val swingZhan: List<Double?> = emptyList(),
+    val swingLines: List<ThresholdLine> = emptyList(),
+    val swingMarks: List<PaneMark> = emptyList(),
+    val s1PosLines: Map<String, List<Double?>> = emptyMap(),
+    val s1Lines: List<ThresholdLine> = emptyList(),
+    val s1PaneMarks: List<PaneMark> = emptyList(),
+    val obsPanels: List<ObsPanel> = emptyList(),
+)
+
+/** A horizontal threshold line on a sub-panel (value + web color). */
+data class ThresholdLine(
+    val value: Double,
+    val colorHex: String?,
+)
+
+/** A mark point on a sub-panel (ts + value + web label/color). */
+data class PaneMark(
+    val ts: String,
+    val value: Double?,
+    val label: String,
+    val colorHex: String?,
+)
+
+/** An observation-pool panel (daily MR / oversold H) carried by mark points. */
+data class ObsPanel(
+    val key: String,
+    val title: String,
+    val colorHex: String?,
+    val marks: List<PaneMark>,
 )

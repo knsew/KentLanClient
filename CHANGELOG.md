@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6
+
+- Chart now matches the web page's sub-panels: volume, 量能 (volume ratio bars plus threshold lines and mark dots), 短摆 (battle line plus 80/20 lines and mark dots), S1 (pos lines per leg plus threshold lines and buy/sell triangles on the 0-100 scale), and observation panels (daily MR / oversold H) when the symbol enables them. All panes share one scroll/zoom state, the time axis sits on the last pane, and the chart column scrolls vertically.
+- Main-chart triangles are now S1 marks only; volume and swing marks moved to their own panels.
+- Note: mark shaded areas from the web panels are not drawn yet.
+
 ## 0.1.5
 
 - Fix: price axis no longer starts at 0 — the range is now pinned to the loaded candles (lowest minus 5% to highest plus 5%), so candles fill the pane instead of squashing into a strip at the top.

@@ -235,8 +235,61 @@ class ApiClient(baseUrl: String) {
                 }
             }
             collectMarks(s1, "S1")
-            collectMarks(indicators?.get("volume"), "量能")
-            collectMarks(indicators?.get("swing"), "短摆")
+            // Main-chart triangles are S1 only; volume/swing marks move
+            // to their own sub-panels below.
+            fun doubleList(el: JsonElement?): List<Double?> {
+                val arr = el?.jsonArray ?: return emptyList()
+                return arr.map { it.jsonPrimitive.doubleOrNull }
+            }
+            fun thresholdLines(obj: JsonObject?): List<ThresholdLine> {
+                val arr = obj?.get("mark_lines")?.jsonArray ?: return emptyList()
+                return arr.mapNotNull { e ->
+                    val o = e.jsonObject
+                    val v = o["value"]?.jsonPrimitive?.doubleOrNull
+                        ?: return@mapNotNull null
+                    ThresholdLine(v, o.str("color"))
+                }
+            }
+            fun paneMarks(obj: JsonObject?): List<PaneMark> {
+                val arr = obj?.get("mark_points")?.jsonArray ?: return emptyList()
+                return arr.mapNotNull { e ->
+                    val o = e.jsonObject
+                    val ts = o.str("ts") ?: return@mapNotNull null
+                    PaneMark(
+                        ts,
+                        o["value"]?.jsonPrimitive?.doubleOrNull,
+                        o.str("label") ?: o.str("text") ?: "",
+                        o.str("color"),
+                    )
+                }
+            }
+            val volume = indicators?.get("volume")?.jsonObject
+            val swing = indicators?.get("swing")?.jsonObject
+            val s1PosLines = mutableMapOf<String, List<Double?>>()
+            val posObj = s1?.get("pos_lines")
+            if (posObj is JsonObject) {
+                for ((np, arr) in posObj) {
+                    if (arr !is JsonNull) s1PosLines[np] = doubleList(arr)
+                }
+            }
+            // Observation panels only for the strategy panels this symbol
+            // enables (same /api/subcharts list the web page uses).
+            val enabled = subcharts(code)
+            val obsPanels = mutableListOf<ObsPanel>()
+            if ("daily_mr" in enabled) {
+                val o = indicators?.get("daily_mr")?.jsonObject
+                val m = paneMarks(o)
+                if (o != null && m.isNotEmpty()) {
+                    obsPanels.add(ObsPanel("daily_mr", "日线MR★观察池", "#4488ff", m))
+                }
+            }
+            if ("strategy_h" in enabled) {
+                val o = indicators?.get("strategy_h")?.jsonObject
+                val m = paneMarks(o)
+                if (o != null && m.isNotEmpty()) {
+                    obsPanels.add(ObsPanel("strategy_h", "超跌H★观察池", "#ffaa00", m))
+                }
+            }
             // S1 pos line: best effort. Server sends pos_lines as a dict
             // keyed by leg (e.g. {"20": [...]}), not a list; tolerate both.
             val pos = mutableListOf<Float?>()
@@ -264,9 +317,31 @@ class ApiClient(baseUrl: String) {
                 marks = marks,
                 fresh = fresh,
                 lastTs = candles.lastOrNull()?.ts,
+                volRatio = doubleList(volume?.get("values")),
+                volLines = thresholdLines(volume),
+                volMarks = paneMarks(volume),
+                swingZhan = doubleList(swing?.get("zhan")),
+                swingLines = thresholdLines(swing),
+                swingMarks = paneMarks(swing),
+                s1PosLines = s1PosLines,
+                s1Lines = thresholdLines(s1),
+                s1PaneMarks = paneMarks(s1),
+                obsPanels = obsPanels,
             )
         } catch (_: Exception) {
             null
+        }
+    }
+
+    /** Strategy sub-panels enabled for a symbol (web parity, default s1). */
+    suspend fun subcharts(code: String): List<String> {
+        return try {
+            val body = get("/api/subcharts?code=$code") ?: return listOf("s1")
+            val arr = LENIENT_JSON.parseToJsonElement(body).jsonObject["subcharts"]?.jsonArray
+            val list = arr?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
+            if (list.isEmpty()) listOf("s1") else list
+        } catch (_: Exception) {
+            listOf("s1")
         }
     }
 }
