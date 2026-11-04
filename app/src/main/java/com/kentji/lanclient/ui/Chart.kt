@@ -45,6 +45,7 @@ import com.patrykandpatrick.vico.core.cartesian.axis.BaseAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.candlestickSeries
 import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
@@ -111,7 +112,11 @@ fun ChartView(data: ChartData, modifier: Modifier = Modifier) {
     }
     val volumeFormatter = remember {
         CartesianValueFormatter { _, value, _ ->
-            if (value >= 10000) "%.0f万".format(value / 10000) else "%.0f".format(value)
+            when {
+                value >= 1e8 -> "%.1f亿".format(value / 1e8)
+                value >= 10000 -> "%.0f万".format(value / 10000)
+                else -> "%.0f".format(value)
+            }
         }
     }
     val timeFormatter = remember(candles, data.period) {
@@ -135,6 +140,15 @@ fun ChartView(data: ChartData, modifier: Modifier = Modifier) {
             }
         }
     }
+    // Vico's auto range always floors at 0 for all-positive values, which
+    // squashes the candles into a thin strip at the top. Pin the price
+    // range to the data instead, with a small pad above and below.
+    val priceRange = remember(data) {
+        val lo = candles.minOf { it.low.toDouble() }
+        val hi = candles.maxOf { it.high.toDouble() }
+        val pad = ((hi - lo) * 0.05).takeIf { it > 0.0 } ?: 0.01
+        CartesianLayerRangeProvider.fixed(minY = lo - pad, maxY = hi + pad)
+    }
     val decorations = remember(data) { listOf(S1Decoration(data.marks, candles)) }
 
     val upBody = rememberLineComponent(fill = fill(UpColor), thickness = BODY_WIDTH_DP.dp)
@@ -152,6 +166,7 @@ fun ChartView(data: ChartData, modifier: Modifier = Modifier) {
                         bearish = CandlestickCartesianLayer.Candle(downBody, downWick, downWick),
                     ),
                     candleSpacing = BAR_SPACING_DP.dp,
+                    rangeProvider = priceRange,
                 ),
                 // Blank left spacer so the price plot starts where the
                 // volume plot starts (the volume axis sits on the left).
@@ -181,7 +196,7 @@ fun ChartView(data: ChartData, modifier: Modifier = Modifier) {
             modelProducer = priceProducer,
             scrollState = scrollState,
             zoomState = zoomState,
-            modifier = Modifier.fillMaxWidth().height(320.dp),
+            modifier = Modifier.fillMaxWidth().weight(1f),
         )
         CartesianChartHost(
             chart = rememberCartesianChart(
@@ -225,14 +240,18 @@ fun ChartView(data: ChartData, modifier: Modifier = Modifier) {
                     ),
                     valueFormatter = timeFormatter,
                     itemPlacer = HorizontalAxis.ItemPlacer.aligned(
-                        spacing = { (candles.size / 5).coerceAtLeast(1) }
+                        // Fixed spacing in bars, not a fraction of the
+                        // whole series: the visible window only holds
+                        // ~60 bars, so a total/5 spacing left the window
+                        // with a single label.
+                        spacing = { 12 }
                     ),
                 ),
             ),
             modelProducer = volumeProducer,
             scrollState = scrollState,
             zoomState = zoomState,
-            modifier = Modifier.fillMaxWidth().height(120.dp),
+            modifier = Modifier.fillMaxWidth().weight(0.3f),
         )
     }
 }
@@ -270,9 +289,9 @@ private class S1Decoration(
             val start = if (isLtr) layerBounds.left else layerBounds.right
             val halfW = (BODY_WIDTH_DP / 2f).pixels * zoom
             val drawingStart = start + (layerDimensions.startPadding - halfW) * dir - scroll
-            val halfBase = 8f.pixels
-            val triHeight = 10f.pixels
-            val gap = 4f.pixels
+            val halfBase = 6f.pixels
+            val triHeight = 8f.pixels
+            val gap = 3f.pixels
             val path = android.graphics.Path()
             for ((idx, mark) in indexed) {
                 val mult = ((idx.toDouble() - ranges.minX) / ranges.xStep).toFloat()

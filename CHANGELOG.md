@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5
+
+- Fix: price axis no longer starts at 0 — the range is now pinned to the loaded candles (lowest minus 5% to highest plus 5%), so candles fill the pane instead of squashing into a strip at the top.
+- Fix: time axis labels were almost all missing because the label spacing was a fraction of the whole series while only ~60 bars are visible; spacing is now a fixed 12 bars.
+- Chart page layout: title reduced to 20sp bold, period pills replaced by a compact 36dp segmented control with all six periods visible at once, and the chart now takes the remaining screen height instead of leaving a large blank area below it.
+- Smaller S1 triangles (6dp half-base) so dense signals no longer merge into a sawtooth band; volume axis now reads in 亿 above 100 million instead of five-digit 万.
+
 ## 0.1.4
 
 - Chart rebuilt on Vico (compose-m3 2.1.4): candlestick pane plus a volume pane sharing one scroll/zoom state, so dragging and pinching move both panes together; right price axis, bottom time axis, tap a candle for an OHLC marker, and S1 buy/sell triangles drawn by a custom decoration that tracks its candle while scrolling and zooming.

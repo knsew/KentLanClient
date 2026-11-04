@@ -1,17 +1,20 @@
 package com.kentji.lanclient.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -22,8 +25,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kentji.lanclient.data.Leg
 
 @Composable
@@ -68,31 +76,41 @@ fun ChartDetailScreen(vm: MainViewModel, code: String, name: String) {
     var period by remember { mutableStateOf("60m") }
     LaunchedEffect(code, period) { vm.loadChart(code, period) }
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text("$name ($code)", style = MaterialTheme.typography.titleLarge)
+        Text("$name ($code)", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
         val periods = listOf(
             "1m" to "1分钟", "5m" to "5分钟", "15m" to "15分钟",
             "30m" to "30分钟", "60m" to "60分钟", "1d" to "日线"
         )
-        // The selected period is scrolled into view, so the default 60分钟
-        // is never cut off at the right edge on first open.
-        val periodState = rememberLazyListState()
-        LaunchedEffect(period) {
-            val idx = periods.indexOfFirst { it.first == period }
-            if (idx >= 0) periodState.scrollToItem(idx)
-        }
-        LazyRow(state = periodState) {
-            items(periods) { (p, label) ->
+        // Compact segmented control instead of big pill buttons: one
+        // 36dp bar, all six periods visible at once, no scrolling.
+        Row(
+            Modifier.fillMaxWidth().height(36.dp)
+                .background(
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    RoundedCornerShape(10.dp)
+                )
+                .padding(2.dp)
+        ) {
+            periods.forEach { (p, label) ->
                 val selected = period == p
-                Button(
-                    onClick = { period = p },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
+                Box(
+                    Modifier.weight(1f).fillMaxHeight()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (selected) MaterialTheme.colorScheme.primary
+                            else Color.Transparent
+                        )
+                        .clickable { period = p },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        label,
+                        fontSize = 13.sp,
+                        color = if (selected) MaterialTheme.colorScheme.onPrimary
                             else MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.padding(end = 4.dp)
-                ) { Text(label) }
+                    )
+                }
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -109,7 +127,9 @@ fun ChartDetailScreen(vm: MainViewModel, code: String, name: String) {
             if (!data.fresh) {
                 Text("数据不是最新的（最后：${data.lastTs ?: ""}）。", color = MaterialTheme.colorScheme.error)
             }
-            ChartView(data)
+            // The chart takes the remaining screen height, so the page
+            // no longer ends in a large blank area below the chart.
+            ChartView(data, Modifier.weight(1f))
             Text(
                 "左右拖动平移，双指缩放，点击 K 线看开高低收；三角为 S1 买卖点。",
                 style = MaterialTheme.typography.bodySmall,
